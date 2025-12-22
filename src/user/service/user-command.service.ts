@@ -25,88 +25,96 @@ export class UserCommandService {
   ) {}
 
   async createUser(dto: CreateUserDto) {
-    try {
-      const user = await this.userRepository.findUser({
-        email: dto?.email,
-      });
+    const existingUser = await this.userRepository.findUser({
+      email: dto.email,
+    });
 
-      if (user) {
-        throw new BadRequestException(
-          `User is already created with this email ${dto?.email}`,
-        );
-      }
-
-      const id = v4();
-      const hashedpassword = await bcrypt.hash(dto.password, 10);
-      const payload: UserCreatedPayload = {
-        id,
-        ...dto,
-        password: hashedpassword,
-      };
-
-      this.eventEmitter.append(EventName.UserCreated, payload);
-      return payload;
-    } catch (error) {
-      throw new BadRequestException(error.response);
+    if (existingUser) {
+      throw new BadRequestException(
+        `User already exists with email: ${dto.email}`,
+      );
     }
+
+    const id = v4();
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+
+    const payload: UserCreatedPayload = {
+      id,
+      ...dto,
+      password: hashedPassword,
+    };
+
+    this.eventEmitter.append(EventName.UserCreated, payload);
+
+    const { password, ...userResponse } = payload;
+    return userResponse;
   }
 
   async signIn(dto: AuthDto) {
-    const userDetails = await this.userRepository.findUser({
-      email: dto?.email,
+    const user = await this.userRepository.findUser({
+      email: dto.email,
     });
 
-    if (!userDetails) {
-      throw new NotFoundException(
-        `User not found with this email ${dto?.email}`,
-      );
+    if (!user) {
+      throw new NotFoundException(`Invalid email or password`);
     }
 
-    const isValidPassword = await bcrypt.compare(
-      dto.password,
-      userDetails.password,
-    );
+    const isValidPassword = await bcrypt.compare(dto.password, user.password);
 
     if (!isValidPassword) {
-      throw new NotFoundException(
-        `You have entered wrong password with email ${dto.email}`,
-      );
+      throw new NotFoundException(`Invalid email or password`);
     }
 
     const authPayload: AuthPayload = {
-      role: userDetails.role,
-      id: userDetails.id,
+      role: user.role,
+      id: user.id,
     };
 
     const accessToken = this.jwtService.sign(authPayload, {
       secret: process.env.JWT_SECRET,
-      expiresIn: '1h',
+      expiresIn: '24h',
     });
 
-    return { accessToken };
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    };
   }
 
-  async updateUser(id: string, authDto: UpdateUserDto) {
-    const user = await this.userRepository.findUser({
-      id,
-    });
+  async updateUser(id: string, dto: UpdateUserDto) {
+    const user = await this.userRepository.findUser({ id });
 
     if (!user) {
-      throw new BadRequestException(`User not found with this id ${id}`);
+      throw new NotFoundException(`User not found with id: ${id}`);
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existingUser = await this.userRepository.findUser({
+        email: dto.email,
+      });
+      if (existingUser) {
+        throw new BadRequestException(
+          `Email ${dto.email} is already taken by another user`,
+        );
+      }
     }
 
     let payload: UserUpdatedPayload = {
       id,
-      ...authDto,
+      ...dto,
     };
 
-    if (authDto?.password) {
-      const hashedpassword = await bcrypt.hash(authDto.password, 10);
-
-      payload = { ...payload, password: hashedpassword };
+    if (dto.password) {
+      const hashedPassword = await bcrypt.hash(dto.password, 12);
+      payload = { ...payload, password: hashedPassword };
     }
 
     this.eventEmitter.append(EventName.UserUpdated, payload);
-    return 'User Updated SuccessFully.';
+    return { message: 'User updated successfully' };
   }
 }

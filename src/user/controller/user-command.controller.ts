@@ -2,6 +2,7 @@ import { Body, Controller, Post, Put, UseGuards } from '@nestjs/common';
 import { UserCommandService } from '../service/user-command.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { AuthDto } from '../dto/auth-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -65,15 +66,14 @@ export class UserCommandController {
     summary: 'Update User',
     description: 'Update user details using JWT authentication',
   })
-  @ApiBody({ type: AuthDto })
+  @ApiBody({ type: UpdateUserDto })
   @ApiCreatedResponse({
     description: 'User updated successfully',
-    type: CreateUserDto,
   })
   @ApiBadRequestResponse({
     description: 'Validation failed or invalid data',
   })
-  async updateUser(@UserContext() user: AuthPayload, @Body() authDto: AuthDto) {
-    return this.userCommandService.updateUser(user.id, authDto);
+  async updateUser(@UserContext() user: AuthPayload, @Body() dto: UpdateUserDto) {
+    return this.userCommandService.updateUser(user.id, dto);
   }
 }
