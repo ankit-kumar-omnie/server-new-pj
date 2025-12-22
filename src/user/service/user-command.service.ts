@@ -56,13 +56,13 @@ export class UserCommandService {
     });
 
     if (!user) {
-      throw new NotFoundException(`Invalid email or password`);
+      throw new NotFoundException(`Invalid email`);
     }
 
     const isValidPassword = await bcrypt.compare(dto.password, user.password);
 
     if (!isValidPassword) {
-      throw new NotFoundException(`Invalid email or password`);
+      throw new NotFoundException(`Invalid password`);
     }
 
     const authPayload: AuthPayload = {
