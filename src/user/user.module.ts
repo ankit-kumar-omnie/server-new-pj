@@ -5,10 +5,10 @@ import { UserCommandService } from './service/user-command.service';
 import { UserHandler } from './handlers/user.handler';
 import { UserRepository } from './repository/user.repository';
 import { UserCommandController } from './controller/user-command.controller';
+import { UserQueryController } from './controller/user-query.controller';
 import { EventModule } from 'src/eventbase/event.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthGuard } from 'src/user/guards/auth.guard';
-import { UserQueryController } from './controller/user-query.controller';
 import { ConfigService } from '@nestjs/config';
 
 @Module({
@@ -25,8 +25,16 @@ import { ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
   ],
-  providers: [UserCommandService, UserHandler, UserRepository, AuthGuard],
-  controllers: [UserCommandController, UserQueryController],
+  providers: [
+    UserCommandService, 
+    UserHandler, 
+    UserRepository, 
+    AuthGuard,
+  ],
+  controllers: [
+    UserCommandController, 
+    UserQueryController,
+  ],
   exports: [AuthGuard, UserRepository],
 })
 export class UserModule {}

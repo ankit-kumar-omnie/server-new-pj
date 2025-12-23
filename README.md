@@ -165,3 +165,17 @@ The project includes:
 ## License
 
 This project is licensed under the UNLICENSED License.
+
+## Deployment
+
+### Render Deployment
+
+The application is ready for deployment on Render. See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+
+**Quick Deploy:**
+1. Connect repository to Render
+2. Set build command: `npm install && npm run build`
+3. Set start command: `npm run start:prod`
+4. Add environment variables (see DEPLOYMENT.md)
+
+The application includes Docker support for containerized deployments.
