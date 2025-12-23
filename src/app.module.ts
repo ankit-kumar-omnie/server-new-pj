@@ -5,6 +5,7 @@ import { UserModule } from './user/user.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventModule } from './eventbase/event.module';
 import { HealthModule } from './health/health.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { validate } from './config/env.validation';
 
 @Module({
@@ -18,6 +19,7 @@ import { validate } from './config/env.validation';
     EventModule,
     UserModule,
     HealthModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [],
