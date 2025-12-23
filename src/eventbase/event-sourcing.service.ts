@@ -2,7 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { EventData, EventRecord } from './event-schema';
-import { EventSourcingResult, EventTimeline, EventStatistics, StreamBatch } from './interfaces/event-sourcing.interfaces';
+import {
+  EventSourcingResult,
+  EventTimeline,
+  EventStatistics,
+  StreamBatch,
+} from './interfaces/event-sourcing.interfaces';
+import { EventName } from './event-names';
 
 @Injectable()
 export class EventSourcingService {
@@ -10,12 +16,15 @@ export class EventSourcingService {
     @InjectModel(EventData.name) private eventModel: Model<EventData>,
   ) {}
 
-  async replayEvents<T = any>(entityId: string, options?: {
-    fromDate?: Date;
-    toDate?: Date;
-    eventTypes?: string[];
-    batchSize?: number;
-  }): Promise<EventSourcingResult<T>> {
+  async replayEvents<T = any>(
+    entityId: string,
+    options?: {
+      fromDate?: Date;
+      toDate?: Date;
+      eventTypes?: string[];
+      batchSize?: number;
+    },
+  ): Promise<EventSourcingResult<T>> {
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
 
     if (!eventData?.events?.length) {
@@ -31,10 +40,13 @@ export class EventSourcingService {
 
     // Apply filters
     if (options?.fromDate || options?.toDate || options?.eventTypes) {
-      filteredEvents = eventData.events.filter(event => {
-        if (options.fromDate && new Date(event.createdAt) < options.fromDate) return false;
-        if (options.toDate && new Date(event.createdAt) > options.toDate) return false;
-        if (options.eventTypes && !options.eventTypes.includes(event.eventName)) return false;
+      filteredEvents = eventData.events.filter((event) => {
+        if (options.fromDate && new Date(event.createdAt) < options.fromDate)
+          return false;
+        if (options.toDate && new Date(event.createdAt) > options.toDate)
+          return false;
+        if (options.eventTypes && !options.eventTypes.includes(event.eventName))
+          return false;
         return true;
       });
     }
@@ -45,17 +57,23 @@ export class EventSourcingService {
     return {
       entityId,
       currentState,
-      eventHistory: filteredEvents.map(event => ({
+      eventHistory: filteredEvents.map((event) => ({
         eventName: event.eventName,
         payload: event.payload,
         createdAt: event.createdAt,
       })),
       totalEvents: filteredEvents.length,
-      lastEventAt: filteredEvents.length > 0 ? filteredEvents[filteredEvents.length - 1].createdAt.toISOString() : undefined,
+      lastEventAt:
+        filteredEvents.length > 0
+          ? filteredEvents[filteredEvents.length - 1].createdAt.toISOString()
+          : undefined,
     };
   }
 
-  async getStateAtTime<T = any>(entityId: string, timestamp: Date): Promise<EventSourcingResult<T>> {
+  async getStateAtTime<T = any>(
+    entityId: string,
+    timestamp: Date,
+  ): Promise<EventSourcingResult<T>> {
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
 
     if (!eventData?.events?.length) {
@@ -64,7 +82,7 @@ export class EventSourcingService {
 
     // Filter events up to the specified timestamp
     const eventsUpToTime = eventData.events.filter(
-      event => new Date(event.createdAt) <= timestamp
+      (event) => new Date(event.createdAt) <= timestamp,
     );
 
     if (eventsUpToTime.length === 0) {
@@ -81,17 +99,21 @@ export class EventSourcingService {
     return {
       entityId,
       currentState: stateAtTime,
-      eventHistory: eventsUpToTime.map(event => ({
+      eventHistory: eventsUpToTime.map((event) => ({
         eventName: event.eventName,
         payload: event.payload,
         createdAt: event.createdAt,
       })),
       totalEvents: eventsUpToTime.length,
-      lastEventAt: eventsUpToTime[eventsUpToTime.length - 1].createdAt.toISOString(),
+      lastEventAt:
+        eventsUpToTime[eventsUpToTime.length - 1].createdAt.toISOString(),
     };
   }
 
-  async getStateAfterEvents<T = any>(entityId: string, eventCount: number): Promise<EventSourcingResult<T>> {
+  async getStateAfterEvents<T = any>(
+    entityId: string,
+    eventCount: number,
+  ): Promise<EventSourcingResult<T>> {
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
 
     if (!eventData?.events?.length) {
@@ -100,18 +122,24 @@ export class EventSourcingService {
 
     // Take only the first N events
     const eventsToReplay = eventData.events.slice(0, eventCount);
-    const stateAfterEvents = this.replayEventsToState<T>(eventsToReplay, entityId);
+    const stateAfterEvents = this.replayEventsToState<T>(
+      eventsToReplay,
+      entityId,
+    );
 
     return {
       entityId,
       currentState: stateAfterEvents,
-      eventHistory: eventsToReplay.map(event => ({
+      eventHistory: eventsToReplay.map((event) => ({
         eventName: event.eventName,
         payload: event.payload,
         createdAt: event.createdAt,
       })),
       totalEvents: eventsToReplay.length,
-      lastEventAt: eventsToReplay.length > 0 ? eventsToReplay[eventsToReplay.length - 1].createdAt.toISOString() : undefined,
+      lastEventAt:
+        eventsToReplay.length > 0
+          ? eventsToReplay[eventsToReplay.length - 1].createdAt.toISOString()
+          : undefined,
     };
   }
 
@@ -125,7 +153,7 @@ export class EventSourcingService {
       };
     }
 
-    const timelineEvents = eventData.events.map(event => ({
+    const timelineEvents = eventData.events.map((event) => ({
       eventName: event.eventName,
       timestamp: event.createdAt.toISOString(),
       changes: this.extractChangesFromPayload(event.payload, event.eventName),
@@ -135,7 +163,8 @@ export class EventSourcingService {
       events: timelineEvents,
       totalEvents: eventData.events.length,
       firstEventAt: eventData.events[0]?.createdAt.toISOString(),
-      lastEventAt: eventData.events[eventData.events.length - 1]?.createdAt.toISOString(),
+      lastEventAt:
+        eventData.events[eventData.events.length - 1]?.createdAt.toISOString(),
     };
   }
 
@@ -150,7 +179,7 @@ export class EventSourcingService {
     }
 
     const eventsByType: Record<string, number> = {};
-    eventData.events.forEach(event => {
+    eventData.events.forEach((event) => {
       eventsByType[event.eventName] = (eventsByType[event.eventName] || 0) + 1;
     });
 
@@ -158,7 +187,9 @@ export class EventSourcingService {
     let averageTimeBetweenEvents: number | undefined;
     if (eventData.events.length > 1) {
       const firstEvent = new Date(eventData.events[0].createdAt);
-      const lastEvent = new Date(eventData.events[eventData.events.length - 1].createdAt);
+      const lastEvent = new Date(
+        eventData.events[eventData.events.length - 1].createdAt,
+      );
       const totalTime = lastEvent.getTime() - firstEvent.getTime();
       averageTimeBetweenEvents = totalTime / (eventData.events.length - 1);
     }
@@ -167,12 +198,17 @@ export class EventSourcingService {
       totalEvents: eventData.events.length,
       eventsByType,
       firstEventAt: eventData.events[0]?.createdAt.toISOString(),
-      lastEventAt: eventData.events[eventData.events.length - 1]?.createdAt.toISOString(),
+      lastEventAt:
+        eventData.events[eventData.events.length - 1]?.createdAt.toISOString(),
       averageTimeBetweenEvents,
+      totalEventTypes: Object.keys(EventName).length,
     };
   }
 
-  async getEntityEvents(entityId: string, eventTypes?: string[]): Promise<EventRecord[]> {
+  async getEntityEvents(
+    entityId: string,
+    eventTypes?: string[],
+  ): Promise<EventRecord[]> {
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
 
     if (!eventData?.events?.length) {
@@ -182,19 +218,23 @@ export class EventSourcingService {
     let filteredEvents = eventData.events;
 
     if (eventTypes && eventTypes.length > 0) {
-      filteredEvents = eventData.events.filter(event => 
-        eventTypes.includes(event.eventName)
+      filteredEvents = eventData.events.filter((event) =>
+        eventTypes.includes(event.eventName),
       );
     }
 
-    return filteredEvents.map(event => ({
+    return filteredEvents.map((event) => ({
       eventName: event.eventName,
       payload: event.payload,
       createdAt: event.createdAt,
     }));
   }
 
-  async compareStates<T = any>(entityId: string, fromDate: Date, toDate: Date): Promise<{
+  async compareStates<T = any>(
+    entityId: string,
+    fromDate: Date,
+    toDate: Date,
+  ): Promise<{
     entityId: string;
     period: { from: string; to: string };
     stateComparison: {
@@ -213,13 +253,17 @@ export class EventSourcingService {
 
     // Get events in the period
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
-    const eventsInPeriod = eventData?.events?.filter(event => {
-      const eventDate = new Date(event.createdAt);
-      return eventDate >= fromDate && eventDate <= toDate;
-    }) || [];
+    const eventsInPeriod =
+      eventData?.events?.filter((event) => {
+        const eventDate = new Date(event.createdAt);
+        return eventDate >= fromDate && eventDate <= toDate;
+      }) || [];
 
     // Calculate changes
-    const changes = this.calculateStateChanges(beforeState.currentState, afterState.currentState);
+    const changes = this.calculateStateChanges(
+      beforeState.currentState,
+      afterState.currentState,
+    );
 
     return {
       entityId,
@@ -232,7 +276,7 @@ export class EventSourcingService {
         after: afterState.currentState,
         changes,
       },
-      eventsInPeriod: eventsInPeriod.map(event => ({
+      eventsInPeriod: eventsInPeriod.map((event) => ({
         timestamp: event.createdAt.toISOString(),
         action: event.eventName,
         details: event.payload,
@@ -240,7 +284,11 @@ export class EventSourcingService {
     };
   }
 
-  async getStreamBatch(entityId: string, batchNumber: number, batchSize: number = 50): Promise<StreamBatch> {
+  async getStreamBatch(
+    entityId: string,
+    batchNumber: number,
+    batchSize: number = 50,
+  ): Promise<StreamBatch> {
     const eventData = await this.eventModel.findOne({ id: entityId }).lean();
 
     if (!eventData?.events?.length) {
@@ -266,7 +314,7 @@ export class EventSourcingService {
     const currentState = this.replayEventsToState(eventsUpToBatch, entityId);
 
     return {
-      batch: batch.map(event => ({
+      batch: batch.map((event) => ({
         eventName: event.eventName,
         payload: event.payload,
         createdAt: event.createdAt,
@@ -300,7 +348,7 @@ export class EventSourcingService {
 
   private extractChangesFromPayload(payload: any, eventName: string): string[] {
     const changes: string[] = [];
-    
+
     switch (eventName) {
       case 'user-created-event':
         changes.push(`User created with email: ${payload.email}`);
@@ -308,7 +356,7 @@ export class EventSourcingService {
         if (payload.role) changes.push(`Role set to: ${payload.role}`);
         break;
       case 'user-updated-event':
-        Object.keys(payload).forEach(key => {
+        Object.keys(payload).forEach((key) => {
           if (key !== 'id' && payload[key] !== null) {
             changes.push(`${key} updated to: ${payload[key]}`);
           }
@@ -322,14 +370,17 @@ export class EventSourcingService {
     return changes;
   }
 
-  private calculateStateChanges<T>(before: T | null, after: T | null): Array<{ field: string; from: any; to: any }> {
+  private calculateStateChanges<T>(
+    before: T | null,
+    after: T | null,
+  ): Array<{ field: string; from: any; to: any }> {
     const changes: Array<{ field: string; from: any; to: any }> = [];
 
     if (!before && !after) return changes;
     if (!before) {
       // Object was created
       if (after && typeof after === 'object') {
-        Object.keys(after).forEach(key => {
+        Object.keys(after).forEach((key) => {
           changes.push({ field: key, from: null, to: (after as any)[key] });
         });
       }
@@ -338,7 +389,7 @@ export class EventSourcingService {
     if (!after) {
       // Object was deleted
       if (before && typeof before === 'object') {
-        Object.keys(before).forEach(key => {
+        Object.keys(before).forEach((key) => {
           changes.push({ field: key, from: (before as any)[key], to: null });
         });
       }
@@ -348,7 +399,7 @@ export class EventSourcingService {
     // Compare objects
     if (typeof before === 'object' && typeof after === 'object') {
       const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
-      allKeys.forEach(key => {
+      allKeys.forEach((key) => {
         const beforeValue = (before as any)[key];
         const afterValue = (after as any)[key];
         if (beforeValue !== afterValue) {

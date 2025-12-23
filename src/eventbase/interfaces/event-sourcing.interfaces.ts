@@ -41,6 +41,7 @@ export interface EventStatistics {
   firstEventAt?: string;
   lastEventAt?: string;
   averageTimeBetweenEvents?: number;
+  totalEventTypes?: number;
 }
 
 export interface AuditTrail {
